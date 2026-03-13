@@ -2,7 +2,7 @@
 
 # Disease Risk Prediction — FastAPI +  MLOps
 
-This repository contains a minimal MLOps-ready example to train a disease risk prediction model and serve it via a FastAPI app.
+This repository contains a MLOps-ready project to train a disease risk prediction model and serve it via a FastAPI app.
 
 ## Contents
 - `src/train.py` — training script. Outputs model and supporting metadata into `models/`.

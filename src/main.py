@@ -1,122 +1,53 @@
-#!/usr/bin/env python3
-"""
-FastAPI app for serving the trained model.
-
-POST /predict
-  - Accepts a JSON object of feature_name -> numeric value
-  - Returns risk probability and risk label
-
-GET /health
-  - Basic health & model info
-"""
-
-import json
-import os
-from typing import Dict, Any
-
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
 import joblib
-import numpy as np
-from fastapi import FastAPI, HTTPException, Request
-from pydantic import BaseModel
+import pandas as pd
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="Disease Risk Prediction API")
+# Global variable to hold our model
+ml_models = {}
 
-MODEL_PATH = os.environ.get("MODEL_PATH", "models/model_pipeline.joblib")
-FEATURES_PATH = os.environ.get("FEATURES_PATH", "models/features.json")
-METRICS_PATH = os.environ.get("METRICS_PATH", "models/metrics.json")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load the ML model on startup
+    try:
+        ml_models["rf_model"] = joblib.load("../model/disease_risk_model.joblib")
+        print("Model loaded successfully.")
+    except Exception as e:
+        print(f"Error loading model: {e}")
+    yield
+    # Clean up on shutdown
+    ml_models.clear()
 
+app = FastAPI(title="Disease Risk Prediction API", lifespan=lifespan)
 
-class FeaturePayload(BaseModel):
-    __root__: Dict[str, float]
+# Define the expected input payload using Pydantic
+class PatientData(BaseModel):
+    age: float = Field(..., description="Patient's age")
+    cholesterol: float = Field(..., description="Serum cholesterol level")
+    resting_bp: float = Field(..., description="Resting blood pressure")
+    max_heart_rate: float = Field(..., description="Maximum heart rate achieved")
 
-
-def load_artifacts():
-    if not os.path.exists(MODEL_PATH):
-        raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
-    model = joblib.load(MODEL_PATH)
-
-    if os.path.exists(FEATURES_PATH):
-        with open(FEATURES_PATH, "r") as f:
-            features = json.load(f).get("features", [])
-    else:
-        # If features.json not present, attempt to infer (not recommended)
-        try:
-            # sklearn pipeline -> last step estimator feature names not always available
-            features = []
-        except Exception:
-            features = []
-
-    metrics = {}
-    if os.path.exists(METRICS_PATH):
-        with open(METRICS_PATH, "r") as f:
-            metrics = json.load(f)
-
-    return model, features, metrics
-
-
-model, FEATURES_ORDER, MODEL_METRICS = load_artifacts()
-
-
-@app.get("/health")
-def health():
-    return {
-        "status": "ok",
-        "model_path": MODEL_PATH,
-        "trained_at": MODEL_METRICS.get("trained_at"),
-        "model_type": MODEL_METRICS.get("model_type"),
-        "n_features_expected": len(FEATURES_ORDER),
-    }
-
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the Disease Risk Prediction API. Send a POST request to /predict."}
 
 @app.post("/predict")
-async def predict(payload: FeaturePayload):
-    data: Dict[str, Any] = payload.__root__
-
-    # validate features
-    if not FEATURES_ORDER:
-        raise HTTPException(status_code=500, detail="Server misconfigured: features list missing. Re-train with train.py.")
-
-    missing = [f for f in FEATURES_ORDER if f not in data]
-    if missing:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Missing required features: {missing}. Expected features: {FEATURES_ORDER}",
-        )
-
-    # Build ordered input
-    x = np.array([[float(data[f]) for f in FEATURES_ORDER]])
-    try:
-        prob = float(model.predict_proba(x)[0, 1])
-    except Exception:
-        # fallback to predict output if no predict_proba
-        pred = model.predict(x)[0]
-        prob = float(pred)
-
-    risk_label = "high" if prob >= 0.5 else "low"
-
+def predict_risk(data: PatientData):
+    if "rf_model" not in ml_models:
+        raise HTTPException(status_code=500, detail="Model is not loaded.")
+    
+    # Convert incoming data to a DataFrame
+    input_df = pd.DataFrame([data.model_dump()])
+    
+    # Make prediction and get probability
+    model = ml_models["rf_model"]
+    prediction = model.predict(input_df)[0]
+    probability = model.predict_proba(input_df)[0][1] # Probability of the positive class
+    
+    risk_status = "High Risk" if prediction == 1 else "Low Risk"
+    
     return {
-        "risk_score": prob,
-        "risk": risk_label,
-        "model_type": MODEL_METRICS.get("model_type"),
-        "trained_at": MODEL_METRICS.get("trained_at"),
+        "risk_status": risk_status,
+        "risk_probability": round(float(probability), 4)
     }
-
-
-@app.post("/predict/raw")
-async def predict_raw(request: Request):
-    """
-    Accept raw ordered list of numeric features as JSON list for quick testing:
-    POST body example: [63, 1, 145, 233, ...]
-    (Order must match features.json)
-    """
-    body = await request.json()
-    if not isinstance(body, list):
-        raise HTTPException(status_code=400, detail="Expected JSON list of numeric features")
-    if len(body) != len(FEATURES_ORDER):
-        raise HTTPException(status_code=400, detail=f"Expected {len(FEATURES_ORDER)} features in order: {FEATURES_ORDER}")
-    x = np.array([list(map(float, body))])
-    try:
-        prob = float(model.predict_proba(x)[0, 1])
-    except Exception:
-        prob = float(model.predict(x)[0])
-    return {"risk_score": prob, "risk": "high" if prob >= 0.5 else "low"}

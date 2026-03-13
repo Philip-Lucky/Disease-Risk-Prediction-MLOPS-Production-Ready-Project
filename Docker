@@ -1,25 +1,24 @@
-# Use an official lightweight Python image
+# Use official Python runtime as a parent image
 FROM python:3.10-slim
 
+# Set the working directory in the container
 WORKDIR /app
 
-# system deps (if needed)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
- && rm -rf /var/lib/apt/lists/*
+# Copy the requirements file into the container
+COPY requirements.txt .
 
-# copy requirements and install
-COPY requirements.txt /app/requirements.txt
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r /app/requirements.txt
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# copy source and models (you can choose to copy models in CI/CD or download from S3)
-COPY src /app/src
-# If you want to include a model in the image for testing, copy models/ here as well:
-# COPY models /app/models
+# Copy the source code and the trained model into the container
+COPY src/ ./src/
+COPY model/ ./model/
 
+# Set the working directory to src so Uvicorn finds main.py easily
 WORKDIR /app/src
+
+# Expose the port FastAPI is running on
 EXPOSE 8000
 
-# Default run command (can be overridden)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Command to run the application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

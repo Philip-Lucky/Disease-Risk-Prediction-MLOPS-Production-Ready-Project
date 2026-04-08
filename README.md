@@ -38,7 +38,7 @@ disease-risk-mlops/
 ### 1. Environment Setup
 Clone the repository and set up a Python virtual environment:
 ```bash
-git clone <your-repo-url>
+git clone (https://github.com/Philip-Lucky/Disease-Risk-Prediction-MLOPS-Production-Ready-Project)
 cd disease-risk-mlops
 ```
 

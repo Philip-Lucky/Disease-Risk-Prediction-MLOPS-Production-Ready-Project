@@ -1,6 +1,4 @@
-# Disease Risk Prediction API - MLOps Foundation
-
-This project is a MLOps deployment demonstrating how to train a machine learning model, wrap it in a REST API using FastAPI, and containerize the application with Docker for seamless cloud deployment (e.g., AWS EC2).
+# Disease Risk Prediction API - 
 
 ## Project Overview
 
@@ -16,7 +14,7 @@ The system uses a Random Forest classifier to predict the risk of heart disease 
 ## Repository Structure
 
 ```text
-disease-risk-mlops/
+disease-risk-/
 ├── model/                  # Directory containing the compiled .joblib model
 ├── src/
 │   ├── train.py            # Script to generate synthetic data, train, and export the model
@@ -38,7 +36,7 @@ disease-risk-mlops/
 ### 1. Environment Setup
 Clone the repository and set up a Python virtual environment:
 ```bash
-git clone (https://github.com/Philip-Lucky/Disease-Risk-Prediction-MLOPS-Production-Ready-Project)
+git clone (https://github.com/Philip-Lucky/Disease-Risk-Prediction)
 cd disease-risk-mlops
 ```
 
@@ -94,7 +92,7 @@ docker stop ml_api_container
 
 ##  AWS EC2 Deployment (Overview)
 
-This containerized setup is ready for an AWS EC2 `t2.micro` or `t3.micro` instance. 
+This containerized setup is ready for an AWS EC2 instance. 
 
 1. Launch an Ubuntu EC2 instance and open Port 8000 in your Security Group.
 2. SSH into the instance and install Docker.
@@ -103,13 +101,3 @@ This containerized setup is ready for an AWS EC2 `t2.micro` or `t3.micro` instan
 5. Your API will be accessible at `http://<your-ec2-public-ip>:8000/docs`.
 
 ---
-
-## Future Enhancements
-* Integrate **MLflow** for robust experiment tracking and model registry.
-* Swap the synthetic dataset for the real UCI Heart Disease dataset.
-* Implement a CI/CD pipeline using GitHub Actions to automatically build and push the Docker image to AWS ECR.
----
-## AUTHOR
-* Name: PHILIP LUCKY
-* Role: DevOps Engineer
-* Email: Philipslucky24@gmail.com
